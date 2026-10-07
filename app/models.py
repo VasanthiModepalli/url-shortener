@@ -13,6 +13,9 @@ class Link(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     clicks: Mapped[list["Click"]] = relationship(
         back_populates="link", cascade="all, delete-orphan"

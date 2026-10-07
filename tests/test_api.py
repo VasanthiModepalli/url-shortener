@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 def create_link(client, url="https://www.python.org"):
     response = client.post("/shorten", json={"url": url})
     assert response.status_code == 201
@@ -59,3 +61,62 @@ def test_referrers_are_tracked(client):
 def test_stats_unknown_code_returns_404(client):
     response = client.get("/stats/doesnotexist")
     assert response.status_code == 404
+def test_custom_alias(client):
+    response = client.post("/shorten", json={"url": "https://www.python.org", "alias": "my-link"})
+    assert response.status_code == 201
+    assert response.json()["code"] == "my-link"
+
+    redirect = client.get("/my-link", follow_redirects=False)
+    assert redirect.status_code == 307
+
+
+def test_duplicate_alias_returns_409(client):
+    client.post("/shorten", json={"url": "https://www.python.org", "alias": "taken"})
+    response = client.post("/shorten", json={"url": "https://fastapi.tiangolo.com", "alias": "taken"})
+    assert response.status_code == 409
+
+
+def test_reserved_alias_returns_409(client):
+    response = client.post("/shorten", json={"url": "https://www.python.org", "alias": "docs"})
+    assert response.status_code == 409
+
+
+def test_invalid_alias_rejected(client):
+    response = client.post("/shorten", json={"url": "https://www.python.org", "alias": "bad alias!"})
+    assert response.status_code == 422
+
+
+def test_past_expiry_rejected(client):
+    past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    response = client.post("/shorten", json={"url": "https://www.python.org", "expires_at": past})
+    assert response.status_code == 422
+
+
+def test_future_expiry_link_works(client):
+    future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    data = client.post("/shorten", json={"url": "https://www.python.org", "expires_at": future}).json()
+    assert data["expires_at"] is not None
+    assert client.get(f"/{data['code']}", follow_redirects=False).status_code == 307
+
+
+def test_expired_link_returns_410(client):
+    soon = (datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat()
+    data = client.post("/shorten", json={"url": "https://www.python.org", "expires_at": soon}).json()
+
+    import time
+    time.sleep(1.5)
+
+    assert client.get(f"/{data['code']}", follow_redirects=False).status_code == 410
+
+
+def test_delete_link(client):
+    data = client.post("/shorten", json={"url": "https://www.python.org"}).json()
+    code = data["code"]
+    client.get(f"/{code}", follow_redirects=False)  # create a click so we test the cascade
+
+    assert client.delete(f"/links/{code}").status_code == 204
+    assert client.get(f"/{code}", follow_redirects=False).status_code == 404
+
+
+def test_delete_unknown_link_returns_404(client):
+    assert client.delete("/links/doesnotexist").status_code == 404
