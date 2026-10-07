@@ -1,0 +1,67 @@
+# URL Shortener API
+
+A REST API that shortens URLs and tracks click analytics, built with FastAPI and SQLAlchemy.
+
+**Live demo:** https://YOUR-APP.onrender.com/docs _(add after deploying)_
+
+## Features
+
+- Shorten any http/https URL, with random 7-character codes or custom aliases
+- Click analytics: total clicks, clicks per day, top referrers
+- Optional link expiration (returns `410 Gone` after expiry)
+- Delete links (and their click history)
+- Input validation: rejects invalid URLs, `javascript:` links, reserved or duplicate aliases
+- 17 automated tests with pytest
+
+## Tech stack
+
+FastAPI, SQLAlchemy, SQLite, Pydantic, pytest, Docker
+
+## API overview
+
+| Method | Endpoint        | Description                                          |
+| ------ | --------------- | ---------------------------------------------------- |
+| POST   | `/shorten`      | Create a short link (optional `alias`, `expires_at`) |
+| GET    | `/{code}`       | Redirect to the original URL (logs a click)          |
+| GET    | `/stats/{code}` | Click analytics for a link                           |
+| DELETE | `/links/{code}` | Delete a link                                        |
+
+Interactive docs are available at `/docs`.
+
+## Run locally
+
+```bash
+git clone https://github.com/YOUR-USERNAME/url-shortener.git
+cd url-shortener
+python -m venv venv
+venv\Scripts\activate      # macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+## Run with Docker
+
+```bash
+docker build -t url-shortener .
+docker run -p 8000:8000 url-shortener
+```
+
+## Run the tests
+
+```bash
+pytest -v
+```
+
+## Design decisions
+
+- **`secrets` instead of `random`** for codes, so they can't be predicted.
+- **307 redirects** preserve the HTTP method; codes are indexed for fast lookups.
+- **`410 Gone` for expired links**, more precise than 404; **`409 Conflict`** for alias clashes.
+- **Dependency injection** (`Depends(get_db)`) lets tests swap in an in-memory database.
+- **Timezone handling:** SQLite drops timezone info, so datetimes are normalized to UTC before comparison.
+
+## Limitations and future improvements
+
+- Alembic migrations (currently tables are created with `create_all`)
+- PostgreSQL for production, since SQLite on free hosting resets on redeploy
+- Rate limiting, user accounts, and Redis caching for hot links
