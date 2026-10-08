@@ -111,6 +111,9 @@ def delete_link(code: str, db: Session = Depends(get_db)):
     db.commit()
     return Response(status_code=204)
 
+@app.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse(url="/docs")
 
 @app.get("/{code}")
 def redirect(code: str, request: Request, db: Session = Depends(get_db)):
