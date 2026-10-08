@@ -2,7 +2,7 @@
 
 A REST API that shortens URLs and tracks click analytics, built with FastAPI and SQLAlchemy.
 
-**Live demo:** https://YOUR-APP.onrender.com/docs _(add after deploying)_
+   Live demo: https://url-shortener-f19f.onrender.com/docs
 
 ## Features
 
